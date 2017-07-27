@@ -8,9 +8,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// char text[16];
-
-void decodeRdsMessage(uint16_t RDSA, uint16_t RDSB, uint16_t RDSC, uint16_t RDSD, char stationName[]);
 char rdsStationName[9];
 uint16_t adc_result0 = 0; // reglaj frecventa (87 -> 108)
 uint16_t adc_result1 = 0; // reglaj frecventa fin (87.0 - > 87.9)
@@ -33,28 +30,27 @@ void radio_read(){
 	TWIWrite(0x22);
 	TWIWrite(0xC);
 	TWIStop();
-
 	TWIStart();
 	TWIWrite(0x23);
-	for (i=0; i<7; i++) data [i] = TWIReadACK();
+	for (i = 0; i < 7; i++) data [i] = TWIReadACK();
 	data[7] = TWIReadNACK();
 	TWIStop();
 }
 
 void InitADC()
 {
-	ADMUX=(1<<REFS0);             // For Aref=AVcc;
-	ADCSRA=(1<<ADEN)|(1<<ADPS2); //Rrescalar div factor = 16
+	ADMUX = (1<<REFS0);            // For Aref = AVcc;
+	ADCSRA = (1<<ADEN) | (1<<ADPS2); //Prescalar division factor = 16
 }
 
 uint16_t ReadADC(uint8_t ch)
 {
 	//Select ADC Channel ch must be 0-7
 	ch=ch&0b00000111;
-	ADMUX = (ADMUX & 0b11110000) | ch;
+	ADMUX = (ADMUX & 0b11110000) | ch;    // Erase and select the new channel
 	
 	//Start Single conversion
-	ADCSRA|=(1<<ADSC);
+	ADCSRA |= (1<<ADSC);
 	
 	//Wait for conversion to complete
 	while(!(ADCSRA & (1<<ADIF)));
@@ -63,18 +59,19 @@ uint16_t ReadADC(uint8_t ch)
 	//Note you may be wondering why we have write one to clear it
 	//This is standard way of clearing bits in io as said in datasheets.
 	//The code writes '1' but it result in setting bit to '0' !!!
-	ADCSRA|=(1<<ADIF);
+	ADCSRA |= (1<<ADIF);
 	return(ADC);
 }
 
 void Wait()
 {
 	uint8_t i;
-	for(i=0;i<10;i++)
-		_delay_ms(5); // It needs time to read ADC (frequency, volume)
+	for(i = 0; i < 10; i++)
+		_delay_ms(5); // It takes some time to read the value of ADC (frequency, volume)
 }
 
-int main(){
+int main()
+{
 	 DDRB = 0xFF;	// Enable output for the LED
 
 	 lcd_init(LCD_DISP_ON);
@@ -94,7 +91,7 @@ int main(){
 	 radio_write_reg(3, freqH, freqL + 0x10);
 	 char output[16];
 	 sprintf(output, "%d.%d Mhz", freq_copy_for_show/10,
-							freq_copy_for_show % 10 * 10);
+			freq_copy_for_show % 10 * 10);
 	 lcd_clrscr();
 	 lcd_home();
 	 lcd_puts(output);
@@ -122,7 +119,8 @@ int main(){
 			 
 			 int areLetters = 1;
 			 for (int i = 0; i < 8; i++) {
-				 if((stableStationName[i] < 'A' || stableStationName[i] > 'Z') && stableStationName[i] != ' ') {
+				 if((stableStationName[i] < 'A' || stableStationName[i] > 'Z') 
+				    				&& stableStationName[i] != ' ') {
 					areLetters = 0;
 				 }
 			 }
@@ -132,24 +130,24 @@ int main(){
 				 lcd_puts(stableStationName);
 			 }
 		}
-		adc_result0=ReadADC(0);
+		adc_result0 = ReadADC(0);
 		Wait();
 		
 		adc_result0 = ReadADC(0);
 		freq = 870;
-		freq += adc_result0  * 21 / 1023*10;
+		freq += adc_result0  * 21 / 1023 * 10;
 		
-		adc_result1=ReadADC(1);
+		adc_result1 = ReadADC(1);
 		Wait();
-		adc_result1=ReadADC(1);
+		adc_result1 = ReadADC(1);
 		
 		freq += adc_result1  * 10 / 1023;
 		
 		if (old_freq != freq) {
-			TWCR=0;
+			TWCR = 0;
 			TWIInit();
-			lcd_gotoxy(0,1);
-			lcd_puts("        ");					// put 8 spaces, clear station name
+			lcd_gotoxy(0, 1);
+			lcd_puts("        ");				// put 8 spaces, clear station name
 			freq_copy_for_show = freq;
 			old_freq = freq;
 			freq = freq - 870;
@@ -158,13 +156,13 @@ int main(){
 			radio_write_reg(3, freqH, freqL + 0x10);
 		} 
 		
-		adc_result2=ReadADC(2);
+		adc_result2 = ReadADC(2);
 		Wait();
-		adc_result2=ReadADC(2);
+		adc_result2 = ReadADC(2);
 		volume = adc_result2 * 15 / 1023;			// volume has 16 steps
 		
 		if (old_volume != volume) {
-			TWCR=0;
+			TWCR = 0;
 			TWIInit();
 			old_volume = volume;
 			volume = volume | 0xd0; 
@@ -172,16 +170,18 @@ int main(){
 		}
 		
 		char volume_text[3]={0};
-		sprintf(output, "%d.%d Mhz", freq_copy_for_show/10, freq_copy_for_show%10*10);
+		sprintf(output, "%d.%d Mhz",
+			freq_copy_for_show / 10,       // print integer part
+			freq_copy_for_show % 10 * 10); // print decimals
 		lcd_gotoxy(0, 0);
 		lcd_puts(output);
-		lcd_gotoxy(10,1);
-		if(old_volume>=0 && old_volume<=9){
-			sprintf(volume_text, "Vol: %d", old_volume);
+		lcd_gotoxy(10, 1);
+		if(old_volume >= 0 && old_volume <= 9){
+			sprintf(volume_text, "Vol: %d", old_volume);  // One extra space
 			lcd_puts(volume_text);
 			Wait();
 		} else {
-			sprintf(volume_text, "Vol:%d", old_volume);
+			sprintf(volume_text, "Vol:%d", old_volume);   // no space 
 			lcd_puts(volume_text);
 			Wait();
 		}
